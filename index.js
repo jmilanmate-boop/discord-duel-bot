@@ -52,7 +52,11 @@ const commands = [
         .setName('player')
         .setDescription('Player in duel')
         .setRequired(true)
-    )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('example')
+    .setDescription('Shows an example duel attack')
 
 ].map(command => command.toJSON());
 
@@ -244,6 +248,20 @@ Use:
           ? duel.player1
           : duel.player2;
 
+      // Get server nicknames
+
+      const attackerMember =
+        await interaction.guild.members.fetch(attacker.id);
+
+      const defenderMember =
+        await interaction.guild.members.fetch(target.id);
+
+      const attackerName =
+        `@${attackerMember.displayName}`;
+
+      const defenderName =
+        `@${defenderMember.displayName}`;
+
       // =========================
       // ATTACK ROLL
       // =========================
@@ -256,6 +274,7 @@ Use:
       let specialText = '';
 
       // MISS
+
       if (attackRoll === 0) {
 
         damage = 0;
@@ -265,6 +284,7 @@ Use:
       }
 
       // CRIT
+
       else if (attackRoll === 6) {
 
         damage =
@@ -285,6 +305,7 @@ Use:
       let defenseText = '';
 
       // Only defend if attack landed
+
       if (damage > 0) {
 
         // 0-2 = no effect
@@ -304,6 +325,8 @@ Use:
 `🛡 Defense reduced damage by 1!`;
         }
 
+        // Perfect defense
+
         else if (defenseRoll === 6) {
 
           damage =
@@ -320,6 +343,7 @@ Damage was halved!`;
       }
 
       // Apply damage
+
       defenderData.hp -= damage;
 
       if (defenderData.hp < 0) {
@@ -335,37 +359,65 @@ Damage was halved!`;
         duels.delete(duel.id);
 
         return interaction.reply(`
-❤️ ${attacker.username}'s HP: ${attackerData.hp}
+❤️ ${attackerName}'s HP: ${attackerData.hp}
 
-🎲 ${attacker.username}'s Roll: ${attackRoll}
-🛡 ${target.username}'s Defense: ${defenseRoll}
+🎲 ${attackerName}'s Roll: ${attackRoll}
+🛡 ${defenderName}'s Defense: ${defenseRoll}
 
 ${specialText}
 ${defenseText}
 
 💥 ${target} takes ${damage} damage!
-❤️ ${target.username}'s HP: 0
+❤️ ${defenderName}'s HP: 0
 
 🏆 ${attacker} WINS THE DUEL!
 `);
       }
 
       // Swap turn
+
       duel.turn = target.id;
 
       await interaction.reply(`
-❤️ ${attacker.username}'s HP: ${attackerData.hp}
+❤️ ${attackerName}'s HP: ${attackerData.hp}
 
-🎲 ${attacker.username}'s Roll: ${attackRoll}
-🛡 ${target.username}'s Defense: ${defenseRoll}
+🎲 ${attackerName}'s Roll: ${attackRoll}
+🛡 ${defenderName}'s Defense: ${defenseRoll}
 
 ${specialText}
 ${defenseText}
 
 💥 ${target} takes ${damage} damage!
-❤️ ${target.username}'s HP: ${defenderData.hp}
+❤️ ${defenderName}'s HP: ${defenderData.hp}
 
 👉 It is now ${target}'s turn!
+
+Use:
+/roll @player
+`);
+    }
+
+    // =========================
+    // EXAMPLE
+    // =========================
+
+    if (interaction.commandName === 'example') {
+
+      return interaction.reply(`
+❤️ @MJ's HP: 30
+
+🎲 @MJ's Roll: 6
+🛡 @Alineffy's Defense: 4
+
+✨ AMAZING ANGLE!
+💥 CRITICAL STRIKE!
+
+🛡 Defense reduced damage by 1!
+
+💥 @Alineffy takes 8 damage!
+❤️ @Alineffy's HP: 22
+
+👉 It is now @Alineffy's turn!
 
 Use:
 /roll @player
@@ -409,9 +461,11 @@ Use:
       }
 
       // Remove duel
+
       duels.delete(duel.id);
 
       // Forfeit message
+
       await interaction.reply(`
 🏳️ ${player} has forfeited the duel!
 
