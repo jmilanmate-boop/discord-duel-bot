@@ -16,10 +16,14 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-const activeDuels = new Map();
+const duels = new Map();
 
-// Slash commands
+// =========================
+// COMMANDS
+// =========================
+
 const commands = [
+
   new SlashCommandBuilder()
     .setName('duel')
     .setDescription('Challenge someone to a duel!')
@@ -32,196 +36,390 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('roll')
-    .setDescription('Roll during your duel!')
+    .setDescription('Attack another player')
+    .addUserOption(option =>
+      option
+        .setName('player')
+        .setDescription('Player to attack')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('endduel')
+    .setDescription('Forfeit a duel')
+    .addUserOption(option =>
+      option
+        .setName('player')
+        .setDescription('Player in duel')
+        .setRequired(true)
+    )
+
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-// Register commands
+// =========================
+// REGISTER COMMANDS
+// =========================
+
 (async () => {
+
   try {
 
     console.log('Registering slash commands...');
 
     await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      Routes.applicationGuildCommands(
+        CLIENT_ID,
+        GUILD_ID
+      ),
       { body: commands }
     );
 
     console.log('Slash commands registered!');
 
   } catch (error) {
+
     console.error(error);
   }
+
 })();
 
+// =========================
+// READY
+// =========================
+
 client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
+
+  console.log(
+    `Logged in as ${client.user.tag}`
+  );
 });
 
-client.on(Events.InteractionCreate, async interaction => {
+// =========================
+// INTERACTIONS
+// =========================
 
-  if (!interaction.isChatInputCommand()) return;
+client.on(
+  Events.InteractionCreate,
+  async interaction => {
 
-  // Restrict to duel channel
-  if (interaction.channelId !== DUEL_CHANNEL_ID) {
+    if (!interaction.isChatInputCommand()) return;
 
-    return interaction.reply({
-      content: '⚔ Duels only work in the duel channel!',
-      ephemeral: true
-    });
-  }
-
-  // =========================
-  // DUEL COMMAND
-  // =========================
-
-  if (interaction.commandName === 'duel') {
-
-    const challenger = interaction.user;
-    const opponent = interaction.options.getUser('player');
-
-    if (opponent.bot) {
-
-      return interaction.reply({
-        content: 'You cannot duel bots!',
-        ephemeral: true
-      });
-    }
-
-    if (challenger.id === opponent.id) {
-
-      return interaction.reply({
-        content: 'You cannot duel yourself!',
-        ephemeral: true
-      });
-    }
-
-    // Prevent already fighting
+    // Duel channel only
     if (
-      activeDuels.has(challenger.id) ||
-      activeDuels.has(opponent.id)
+      interaction.channelId !==
+      DUEL_CHANNEL_ID
     ) {
 
       return interaction.reply({
-        content: 'One of these players is already in a duel!',
+        content:
+          '⚔ Duels only work in the duel channel!',
         ephemeral: true
       });
     }
 
-    // Random first turn
-    const currentTurn =
-      Math.random() < 0.5
-        ? challenger.id
-        : opponent.id;
+    // =========================
+    // DUEL
+    // =========================
 
-    const duelData = {
-      player1: challenger.id,
-      player2: opponent.id,
-      hp: {
-        [challenger.id]: 50,
-        [opponent.id]: 50
-      },
-      turn: currentTurn
-    };
+    if (interaction.commandName === 'duel') {
 
-    activeDuels.set(challenger.id, duelData);
-    activeDuels.set(opponent.id, duelData);
+      const challenger = interaction.user;
 
-    const startingPlayer =
-      currentTurn === challenger.id
-        ? challenger
-        : opponent;
+      const opponent =
+        interaction.options.getUser(
+          'player'
+        );
 
-    await interaction.reply(`
-⚔ DUEL STARTED ⚔
+      if (challenger.id === opponent.id) {
+
+        return interaction.reply({
+          content:
+            'You cannot duel yourself!',
+          ephemeral: true
+        });
+      }
+
+      if (opponent.bot) {
+
+        return interaction.reply({
+          content:
+            'You cannot duel bots!',
+          ephemeral: true
+        });
+      }
+
+      const duelId =
+        `${challenger.id}-${opponent.id}`;
+
+      const duel = {
+
+        id: duelId,
+
+        player1: {
+          id: challenger.id,
+          hp: 30
+        },
+
+        player2: {
+          id: opponent.id,
+          hp: 30
+        },
+
+        turn:
+          Math.random() < 0.5
+            ? challenger.id
+            : opponent.id
+      };
+
+      duels.set(duelId, duel);
+
+      await interaction.reply(`
+⚔ NEW DUEL ⚔
 
 ${challenger} VS ${opponent}
 
-❤️ Both players start with 50 HP
+❤️ Both players start with 30 HP
 
-🎲 ${startingPlayer} goes first!
-
-Use:
-/roll
-`);
-  }
-
-  // =========================
-  // ROLL COMMAND
-  // =========================
-
-  if (interaction.commandName === 'roll') {
-
-    const player = interaction.user;
-
-    // Check duel
-    if (!activeDuels.has(player.id)) {
-
-      return interaction.reply({
-        content: 'You are not in a duel!',
-        ephemeral: true
-      });
-    }
-
-    const duel = activeDuels.get(player.id);
-
-    // Check turn
-    if (duel.turn !== player.id) {
-
-      return interaction.reply({
-        content: 'It is not your turn!',
-        ephemeral: true
-      });
-    }
-
-    const opponentId =
-      duel.player1 === player.id
-        ? duel.player2
-        : duel.player1;
-
-    // Roll d10
-    const damage = Math.floor(Math.random() * 10) + 1;
-
-    duel.hp[opponentId] -= damage;
-
-    if (duel.hp[opponentId] < 0) {
-      duel.hp[opponentId] = 0;
-    }
-
-    // Win condition
-    if (duel.hp[opponentId] <= 0) {
-
-      activeDuels.delete(player.id);
-      activeDuels.delete(opponentId);
-
-      return interaction.reply(`
-🎲 ${player} rolled a ${damage}!
-
-💥 <@${opponentId}> takes ${damage} damage!
-
-❤️ <@${opponentId}> HP: 0
-
-🏆 ${player} WINS THE DUEL!
-`);
-    }
-
-    // Swap turns
-    duel.turn = opponentId;
-
-    await interaction.reply(`
-🎲 ${player} rolled a ${damage}!
-
-💥 <@${opponentId}> takes ${damage} damage!
-
-❤️ <@${opponentId}> HP: ${duel.hp[opponentId]}
-
-👉 It is now <@${opponentId}>'s turn!
+🎲 <@${duel.turn}> goes first!
 
 Use:
-/roll
+/roll @player
 `);
-  }
+    }
+
+    // =========================
+    // ROLL
+    // =========================
+
+    if (interaction.commandName === 'roll') {
+
+      const attacker = interaction.user;
+
+      const target =
+        interaction.options.getUser(
+          'player'
+        );
+
+      const duel =
+        [...duels.values()].find(d =>
+
+          (
+            d.player1.id === attacker.id &&
+            d.player2.id === target.id
+          ) ||
+
+          (
+            d.player2.id === attacker.id &&
+            d.player1.id === target.id
+          )
+        );
+
+      if (!duel) {
+
+        return interaction.reply({
+          content:
+            'No duel found with that player!',
+          ephemeral: true
+        });
+      }
+
+      if (duel.turn !== attacker.id) {
+
+        return interaction.reply({
+          content:
+            'It is not your turn!',
+          ephemeral: true
+        });
+      }
+
+      const attackerData =
+        duel.player1.id === attacker.id
+          ? duel.player1
+          : duel.player2;
+
+      const defenderData =
+        duel.player1.id === target.id
+          ? duel.player1
+          : duel.player2;
+
+      // =========================
+      // ATTACK ROLL
+      // =========================
+
+      let attackRoll =
+        Math.floor(Math.random() * 7);
+
+      let damage = attackRoll;
+
+      let specialText = '';
+
+      // MISS
+      if (attackRoll === 0) {
+
+        damage = 0;
+
+        specialText =
+`💨 You completely missed the attack!`;
+      }
+
+      // CRIT
+      else if (attackRoll === 6) {
+
+        damage =
+          Math.floor(attackRoll * 1.5);
+
+        specialText =
+`✨ AMAZING ANGLE!
+💥 CRITICAL STRIKE!`;
+      }
+
+      // =========================
+      // DEFENSE ROLL
+      // =========================
+
+      let defenseRoll =
+        Math.floor(Math.random() * 7);
+
+      let defenseText = '';
+
+      // Only defend if attack landed
+      if (damage > 0) {
+
+        // 0-2 = no effect
+
+        if (defenseRoll >= 3 &&
+            defenseRoll <= 5) {
+
+          damage -= 1;
+
+          if (damage < 1) {
+            damage = 1;
+          }
+
+          defenseText =
+`🛡 Defense reduced damage by 1!`;
+        }
+
+        else if (defenseRoll === 6) {
+
+          damage =
+            Math.floor(damage / 2);
+
+          if (damage < 1) {
+            damage = 1;
+          }
+
+          defenseText =
+`🛡 PERFECT DEFENSE!
+Damage was halved!`;
+        }
+      }
+
+      // Apply damage
+      defenderData.hp -= damage;
+
+      if (defenderData.hp < 0) {
+        defenderData.hp = 0;
+      }
+
+      // =========================
+      // WIN CONDITION
+      // =========================
+
+      if (defenderData.hp <= 0) {
+
+        duels.delete(duel.id);
+
+        return interaction.reply(`
+❤️ YOUR HP: ${attackerData.hp}
+
+🎲 YOUR ROLL: ${attackRoll}
+🛡 ENEMY DEFENSE: ${defenseRoll}
+
+${specialText}
+
+${defenseText}
+
+💥 ${target} takes ${damage} damage!
+
+❤️ ENEMY HP: 0
+
+🏆 ${attacker} WINS THE DUEL!
+`);
+      }
+
+      // Swap turn
+      duel.turn = target.id;
+
+      await interaction.reply(`
+❤️ YOUR HP: ${attackerData.hp}
+
+🎲 YOUR ROLL: ${attackRoll}
+🛡 ENEMY DEFENSE: ${defenseRoll}
+
+${specialText}
+
+${defenseText}
+
+💥 ${target} takes ${damage} damage!
+
+❤️ ENEMY HP: ${defenderData.hp}
+
+👉 It is now ${target}'s turn!
+
+Use:
+/roll @player
+`);
+    }
+
+    // =========================
+    // END DUEL
+    // =========================
+
+    if (interaction.commandName === 'endduel') {
+
+      const player = interaction.user;
+
+      const target =
+        interaction.options.getUser(
+          'player'
+        );
+
+      const duel =
+        [...duels.values()].find(d =>
+
+          (
+            d.player1.id === player.id &&
+            d.player2.id === target.id
+          ) ||
+
+          (
+            d.player2.id === player.id &&
+            d.player1.id === target.id
+          )
+        );
+
+      if (!duel) {
+
+        return interaction.reply({
+          content:
+            'No duel found!',
+          ephemeral: true
+        });
+      }
+
+      // Remove duel
+      duels.delete(duel.id);
+
+      // Forfeit message
+      await interaction.reply(`
+🏳️ ${player} has forfeited the duel!
+
+🏆 ${target} wins by surrender!
+`);
+    }
 });
 
 client.login(TOKEN);
