@@ -289,8 +289,10 @@ Use:
 
         // 0-2 = no effect
 
-        if (defenseRoll >= 3 &&
-            defenseRoll <= 5) {
+        if (
+          defenseRoll >= 3 &&
+          defenseRoll <= 5
+        ) {
 
           damage -= 1;
 
@@ -333,18 +335,16 @@ Damage was halved!`;
         duels.delete(duel.id);
 
         return interaction.reply(`
-❤️ YOUR HP: ${attackerData.hp}
+❤️ ${attacker.username}'s HP: ${attackerData.hp}
 
-🎲 YOUR ROLL: ${attackRoll}
-🛡 ENEMY DEFENSE: ${defenseRoll}
+🎲 ${attacker.username}'s Roll: ${attackRoll}
+🛡 ${target.username}'s Defense: ${defenseRoll}
 
 ${specialText}
-
 ${defenseText}
 
 💥 ${target} takes ${damage} damage!
-
-❤️ ENEMY HP: 0
+❤️ ${target.username}'s HP: 0
 
 🏆 ${attacker} WINS THE DUEL!
 `);
@@ -354,18 +354,16 @@ ${defenseText}
       duel.turn = target.id;
 
       await interaction.reply(`
-❤️ YOUR HP: ${attackerData.hp}
+❤️ ${attacker.username}'s HP: ${attackerData.hp}
 
-🎲 YOUR ROLL: ${attackRoll}
-🛡 ENEMY DEFENSE: ${defenseRoll}
+🎲 ${attacker.username}'s Roll: ${attackRoll}
+🛡 ${target.username}'s Defense: ${defenseRoll}
 
 ${specialText}
-
 ${defenseText}
 
 💥 ${target} takes ${damage} damage!
-
-❤️ ENEMY HP: ${defenderData.hp}
+❤️ ${target.username}'s HP: ${defenderData.hp}
 
 👉 It is now ${target}'s turn!
 
