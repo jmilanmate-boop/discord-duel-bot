@@ -7,7 +7,7 @@ const {
   SlashCommandBuilder
 } = require('discord.js');
 
-const TOKEN = 'MTUwMjE5MjY5MTQ5OTUwMzcwNw.GeMI_b.XfTyiDHkzqkLNP4OPFJm-T89Ah-3iVPI3Rw_FU';
+const TOKEN = process.env.TOKEN;
 const CLIENT_ID = '1502192691499503707';
 const GUILD_ID = '1501930870762901596';
 const DUEL_CHANNEL_ID = '1502197825180532786';
