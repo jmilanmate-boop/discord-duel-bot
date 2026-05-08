@@ -111,6 +111,7 @@ client.on(
     if (!interaction.isChatInputCommand()) return;
 
     // Duel channel only
+
     if (
       interaction.channelId !==
       DUEL_CHANNEL_ID
@@ -248,19 +249,13 @@ Use:
           ? duel.player1
           : duel.player2;
 
-      // Get server nicknames
-
-      const attackerMember =
-        await interaction.guild.members.fetch(attacker.id);
-
-      const defenderMember =
-        await interaction.guild.members.fetch(target.id);
+      // Proper Discord mentions
 
       const attackerName =
-        `@${attackerMember.displayName}`;
+        `<@${attacker.id}>`;
 
       const defenderName =
-        `@${defenderMember.displayName}`;
+        `<@${target.id}>`;
 
       // =========================
       // ATTACK ROLL
@@ -370,7 +365,7 @@ ${defenseText}
 💥 ${target} takes ${damage} damage!
 ❤️ ${defenderName}'s HP: 0
 
-🏆 ${attacker} WINS THE DUEL!
+🏆 ${attackerName} WINS THE DUEL!
 `);
       }
 
@@ -404,23 +399,19 @@ Use:
     if (interaction.commandName === 'example') {
 
       return interaction.reply(`
-❤️ @MJ's HP: 30
+❤️ @John Doe's HP: 30
 
-🎲 @MJ's Roll: 6
-🛡 @Alineffy's Defense: 4
+🎲 @John Doe's Roll: 6
+🛡 @Jane Doe's Defense: 4
 
 ✨ AMAZING ANGLE!
 💥 CRITICAL STRIKE!
-
 🛡 Defense reduced damage by 1!
 
-💥 @Alineffy takes 8 damage!
-❤️ @Alineffy's HP: 22
+💥 @Jane Doe takes 8 damage!
+❤️ @Jane Doe's HP: 22
 
-👉 It is now @Alineffy's turn!
-
-Use:
-/roll @player
+🏆 @John Doe WINS THE DUEL!
 `);
     }
 
